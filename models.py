@@ -14,6 +14,8 @@
 дата создания (автоматически)
 
 """
+from datetime import datetime
+
 from peewee import *
 
 db = SqliteDatabase('cats.db')
@@ -33,8 +35,11 @@ class User(Base):
 
 
 class Blog(Base):
-
-
+    name = CharField()
+    image_path = CharField(null=True)
+    text = CharField()
+    author = CharField()
+    created_on = DateTimeField(default=datetime.utcnow())
 
 db.connect()
-db.create_tables(User)
+db.create_tables((User, Blog))
