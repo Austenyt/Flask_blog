@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Записи{% endblock %}
+
+{% block content %}
+    <div class="container">
+        {% for post in posts %}
+            <div class="post mb-4 pb-3 border-bottom">
+                <h3>{{ post.name }}</h3>
+                <p>{{ post.text }}</p>
+                {% if post.image_path and post.image_path|length > 0 %}
+                    <img src="{{post.image_path}}" alt="Image" class="img-fluid" style="max-width:300px;">
+                {% endif %}
+                <p>Автор: {{ post.author.first_name }} {{ post.author.last_name }}</p>
+            </div>
+        {% else %}
+            <p>Постов пока нет.</p>
+        {% endfor %}
+      </div>
+{% endblock %}

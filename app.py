@@ -1,8 +1,9 @@
 import hashlib
+import os
 
 from flask import *
 
-from models import User
+from models import User, Blog
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'the random string'
@@ -13,8 +14,20 @@ def password_hash(password):
     return hash_object
 
 
+@app.before_request
+def get_user():
+    user_id = session.get('user_id')
+    if user_id:
+        user = User.get_or_none(User.id == user_id)
+    else:
+        user = None
+    request.user = user
+
+
+@app.route('/')
 def index():
-    pass
+    posts = Blog.select().join(User).order_by(Blog.id.desc())
+    return render_template('blog.html', posts=posts, user=request.user)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -63,9 +76,51 @@ def login():
             return render_template('login.html', error='Пользователь не найден')
 
 
+@app.route('/logout', methods=['GET', 'POST'])
 def logout():
-    pass
+    del session['user_id']
+    return redirect(url_for('index'))
 
 
-def create_post():
-    pass
+@app.route('/add_post', methods=['GET', 'POST'])
+def add_post():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        name = request.form['name']
+        text = request.form['text']
+        author = session['user_id']
+        image = request.files.get('image')
+        if image:
+            image.save('media/' + image.filename)
+            image = 'media/' + image.filename
+
+        Blog.create(
+            name=name,
+            text=text,
+            author=author,
+            image_path=image,
+        )
+        return redirect(url_for('index'))
+    return render_template('add_post.html')
+
+
+@app.route('/media/<filename>')
+def media(filename):
+    return send_from_directory(directory=os.path.dirname('media/' + filename),
+                               path=os.path.basename('media/' + filename))
+
+
+@app.route('/profile', methods=['GET'])
+def profile():
+    if session.get('user_id'):
+        user = User.get_or_none(User.id == session['user_id'])
+    else:
+        user = None
+
+    return render_template('profile.html', user=user)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)

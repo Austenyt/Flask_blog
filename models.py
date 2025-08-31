@@ -18,7 +18,7 @@ from datetime import datetime
 
 from peewee import *
 
-db = SqliteDatabase('cats.db')
+db = SqliteDatabase('blog.db')
 
 
 class Base(Model):
@@ -38,8 +38,9 @@ class Blog(Base):
     name = CharField()
     image_path = CharField(null=True)
     text = CharField()
-    author = CharField()
-    created_on = DateTimeField(default=datetime.utcnow())
+    author = ForeignKeyField(User)
+    created_on = DateTimeField(default=datetime.now())
+
 
 db.connect()
 db.create_tables((User, Blog))
