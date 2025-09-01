@@ -95,6 +95,8 @@ def add_post():
         if image:
             image.save('media/' + image.filename)
             image = 'media/' + image.filename
+        else:
+            image = None
 
         Blog.create(
             name=name,
@@ -105,10 +107,35 @@ def add_post():
         return redirect(url_for('index'))
     return render_template('add_post.html')
 
+
+@app.route('/edit_post/<int:post_id>', methods=['GET', 'POST'])
+def edit_post(post_id):
+    post = Blog.get(Blog.id == post_id)
+    if post.author != request.user:
+        return redirect(url_for('index'))
+    else:
+        if request.method == 'GET':
+            return render_template('edit_post.html')
+        else:
+            name = request.form['name']
+            text = request.form['text']
+            image = request.files.get('image')
+            if image:
+                image.save('media/' + image.filename)
+                image = 'media/' + image.filename
+            else:
+                image = None
+        post.name = name
+        post.text = text
+        post.save()
+        return redirect(url_for('post_detail', post_id=post_id))
+
+
 @app.route('/post/<int:post_id>', methods=['GET'])
 def post_detail(post_id):
     post = Blog.get(Blog.id == post_id)
     return render_template('post_detail.html', post=post)
+
 
 @app.route('/media/<filename>')
 def media(filename):
