@@ -105,6 +105,10 @@ def add_post():
         return redirect(url_for('index'))
     return render_template('add_post.html')
 
+@app.route('/post/<int:post_id>', methods=['GET'])
+def post_detail(post_id):
+    post = Blog.get(Blog.id == post_id)
+    return render_template('post_detail.html', post=post)
 
 @app.route('/media/<filename>')
 def media(filename):
