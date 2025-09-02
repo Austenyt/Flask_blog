@@ -2,6 +2,7 @@ import hashlib
 import os
 
 from flask import *
+from werkzeug.utils import secure_filename
 
 from models import User, Blog
 
@@ -76,6 +77,43 @@ def login():
             return render_template('login.html', error='Пользователь не найден')
 
 
+@app.route('/profile', methods=['GET'])
+def profile():
+    if session.get('user_id'):
+        user = User.get_or_none(User.id == session['user_id'])
+    else:
+        user = None
+
+    return render_template('profile.html', user=user)
+
+
+@app.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
+def edit_user(user_id):
+    user = User.get(User.id == user_id)
+    if request.method == 'GET':
+        return render_template('edit_user.html', user=user)
+    else:
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        email = request.form['email']
+        password = request.form['password']
+        password_confirm = request.form['password_confirm']
+        image = request.files.get('image')
+        if password != password_confirm:
+            return render_template('register.html', error='Пароли не совпадают')
+        if image and image.filename != '':
+            filename = secure_filename(image.filename)
+            image_path = 'media/' + filename
+            image.save(image_path)
+            user.image_path = image_path
+    user.first_name = first_name
+    user.last_name = last_name
+    user.email = email
+    user.password = password
+    user.save()
+    return redirect(url_for('profile', user_id=user_id))
+
+
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
     del session['user_id']
@@ -141,16 +179,6 @@ def post_detail(post_id):
 def media(filename):
     return send_from_directory(directory=os.path.dirname('media/' + filename),
                                path=os.path.basename('media/' + filename))
-
-
-@app.route('/profile', methods=['GET'])
-def profile():
-    if session.get('user_id'):
-        user = User.get_or_none(User.id == session['user_id'])
-    else:
-        user = None
-
-    return render_template('profile.html', user=user)
 
 
 if __name__ == '__main__':
