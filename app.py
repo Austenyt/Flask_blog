@@ -4,7 +4,7 @@ import os
 from flask import *
 from werkzeug.utils import secure_filename
 
-from models import User, Blog
+from models import User, Blog, BlogImage, BlogTags, Comment
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'the random string'
@@ -25,16 +25,20 @@ def get_user():
     request.user = user
 
 
+def render(template, **kwargs):
+    return render_template(template, **kwargs, user=request.user)
+
+
 @app.route('/')
 def index():
     posts = Blog.select().join(User).order_by(Blog.id.desc())
-    return render_template('blog.html', posts=posts, user=request.user)
+    return render('blog.html', posts=posts)
 
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
-        return render_template('register.html')
+        return render('register.html')
     else:
         first_name = request.form['first_name']
         last_name = request.form['last_name']
@@ -43,7 +47,7 @@ def register():
         password_confirm = request.form['password_confirm']
         image = request.files.get('image')
         if password != password_confirm:
-            return render_template('register.html', error='Пароли не совпадают')
+            return render('register.html', error='Пароли не совпадают')
         try:
             User.create(
                 first_name=first_name,
@@ -54,13 +58,13 @@ def register():
             )
             return redirect(url_for('index'))
         except Exception as error:
-            return render_template('register.html', error=error)
+            return render('register.html', error=error)
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return render_template('login.html')
+        return render('login.html')
     else:
         email = request.form['email']
         password = request.form['password']
@@ -72,26 +76,20 @@ def login():
                 session['email'] = user.email
                 return redirect(url_for('index'))
             else:
-                return render_template('login.html', error='Неверный пароль')
+                return render('login.html', error='Неверный пароль')
         else:
-            return render_template('login.html', error='Пользователь не найден')
+            return render('login.html', error='Пользователь не найден')
 
 
 @app.route('/profile', methods=['GET'])
 def profile():
-    if session.get('user_id'):
-        user = User.get_or_none(User.id == session['user_id'])
-    else:
-        user = None
-
-    return render_template('profile.html', user=user)
+    return render('profile.html')
 
 
-@app.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
-def edit_user(user_id):
-    user = User.get(User.id == user_id)
+@app.route('/edit_user', methods=['GET', 'POST'])
+def edit_user():
     if request.method == 'GET':
-        return render_template('edit_user.html', user=user)
+        return render('edit_user.html')
     else:
         first_name = request.form['first_name']
         last_name = request.form['last_name']
@@ -100,18 +98,18 @@ def edit_user(user_id):
         password_confirm = request.form['password_confirm']
         image = request.files.get('image')
         if password != password_confirm:
-            return render_template('register.html', error='Пароли не совпадают')
+            return render('register.html', error='Пароли не совпадают')
         if image and image.filename != '':
             filename = secure_filename(image.filename)
             image_path = 'media/' + filename
             image.save(image_path)
-            user.image_path = image_path
-    user.first_name = first_name
-    user.last_name = last_name
-    user.email = email
-    user.password = password
-    user.save()
-    return redirect(url_for('profile', user_id=user_id))
+            request.user.image_path = image_path
+    request.user.first_name = first_name
+    request.user.last_name = last_name
+    request.user.email = email
+    request.user.password = password
+    request.user.save()
+    return redirect(url_for('profile'))
 
 
 @app.route('/logout', methods=['GET', 'POST'])
@@ -129,31 +127,53 @@ def add_post():
         name = request.form['name']
         text = request.form['text']
         author = session['user_id']
-        image = request.files.get('image')
-        if image:
-            image.save('media/' + image.filename)
-            image = 'media/' + image.filename
-        else:
-            image = None
+        tags = request.form['tags']
+        tags_list = tags.split()
+        images = request.files.getlist('files')
 
-        Blog.create(
+        blog = Blog.create(
             name=name,
             text=text,
             author=author,
-            image_path=image,
         )
+
+        for tag in tags_list:
+            BlogTags.create(blog=blog, text=tag)
+
+        print(images)
+        for image in images:
+            image.save('media/' + image.filename)
+            image = 'media/' + image.filename
+            BlogImage.create(
+                blog=blog,
+                image_path=image,
+            )
         return redirect(url_for('index'))
-    return render_template('add_post.html')
+    return render('add_post.html')
+
+
+@app.route('/add_comment/<int:post_id>', methods=['POST'])
+def add_comment(post_id):
+    if request.method == 'POST':
+        author = request.user.id
+        text = request.form['text']
+
+        Comment.create(
+            blog_id=post_id,
+            author=author,
+            text=text,
+        )
+    return redirect(url_for('index'))
 
 
 @app.route('/edit_post/<int:post_id>', methods=['GET', 'POST'])
 def edit_post(post_id):
     post = Blog.get(Blog.id == post_id)
     if post.author != request.user:
-        return redirect(url_for('index'))
+        return redirect(url_for('login'))
     else:
         if request.method == 'GET':
-            return render_template('edit_post.html')
+            return render('edit_post.html')
         else:
             name = request.form['name']
             text = request.form['text']
@@ -172,7 +192,7 @@ def edit_post(post_id):
 @app.route('/post/<int:post_id>', methods=['GET'])
 def post_detail(post_id):
     post = Blog.get(Blog.id == post_id)
-    return render_template('post_detail.html', post=post)
+    return render('post_detail.html', post=post)
 
 
 @app.route('/media/<filename>')

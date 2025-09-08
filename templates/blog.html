@@ -9,8 +9,8 @@
         <h3>{{ post.name }}</h3>
         <p>{{ post.text }}</p>
         <div class="image-container" style="max-width:300px;">
-            {% if post.image_path %}
-            <img src="{{ post.image_path }}" alt="Image" class="img-fluid" style="max-width:300px;"
+            {% for image in post.images %}
+            <img src="{{ image.image_path }}" alt="Image" class="img-fluid" style="max-width:300px;"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             {% else %}
             <svg class="bd-placeholder-img card-img-top" width="300" height="225"
@@ -21,17 +21,29 @@
                 <rect width="100%" height="100%" fill="#55595c"/>
                 <text x="50%" y="50%" fill="#eceeef" dy=".3em">Нет изображения</text>
             </svg>
-            {% endif %}
+            {% endfor %}
         </div>
         <p>Автор: {{ post.author.first_name }} {{ post.author.last_name }}</p>
+        {% if post.tags %}
+        <p>Теги: {% for tag in post.tags %}
+            #{{ tag.text }}
+            {% endfor %}
+        </p>
+        {% endif %}
         <div class="d-flex justify-content-between align-items-center">
             <div class="btn-group">
                 <a href="{{ url_for('post_detail', post_id=post.id) }}"
                    class="btn btn-sm btn-outline-secondary">Просмотр</a>
-                <a href="{{ url_for('edit_post', post_id=post.id) }}"
-                   class="btn btn-sm btn-outline-secondary">Редактировать</a>
             </div>
-
+        </div>
+        <div>
+            <form method="post" action="{{ url_for('add_comment', post_id=post.id) }}">
+                <textarea name="text" id="text"></textarea>
+                <button type="submit">Добавить</button>
+            </form>
+            {% for comment in post.comments %}
+            <p>{{ comment.author.first_name}}: {{ comment.text }}</p>
+            {% endfor %}
         </div>
     </div>
     {% else %}
